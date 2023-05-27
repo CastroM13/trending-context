@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        body {
+            background: black;
+            color: white;
+            font-family: sans-serif;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        #list {
+            display: flex;
+            flex-wrap: wrap;
+            width: 800px;
+            justify-content: flex-start;
+        }
+        #list > div {
+            padding: 1em;
+            border: 1px solid #242424;
+            margin: 1em;
+            width: 200px;
+            text-align: center;
+            border-radius: 5px;
+        }
+        #list > div:hover {
+            padding: 1em;
+            color: #d4d4d4;
+            background: rgb(22, 22, 22);
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="list">
+    </div>
+    <script>
+        function openUrl(event) {
+            location.replace('topic/' + event.target.innerHTML)
+        }
+        fetch('trending')
+            .then(e => e.json())
+            .then(trendings => {
+                const trendingsSet = new Set(trendings.topics);
+                console.log(trendingsSet)
+                trendingsSet.forEach(t => {
+                    const tl = document.createElement('div');
+                    tl.innerHTML = t;
+                    tl.onclick = openUrl;
+                    document.querySelector('#list').appendChild(tl);
+                })
+            })
+    </script>
+</body>
+</html>
