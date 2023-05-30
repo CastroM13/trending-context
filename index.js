@@ -58,7 +58,7 @@ app.get('/topic/trending/:topic', async (req, res) => {
     const options = new chrome.Options();
     options.addArguments('--window-size=1080,1920');
     options.addArguments('--user-data-dir=C:/Users/mathe/AppData/Local/Google/Chrome/User Data/');
-    options.addArguments('--headless'); // Run Chrome in headless mode (no GUI)
+    // options.addArguments('--headless'); // Run Chrome in headless mode (no GUI)
 
     const driver = await new Builder()
       .forBrowser('chrome')
@@ -88,12 +88,6 @@ app.get('/topic/trending/:topic', async (req, res) => {
     res.status(500).json({ error: 'An error occurred' });
   }
 });
-
-const forbidden = value =>
-  ![
-    "Replying to",
-    "@"
-  ].some(element => value.includes(element));
 
 app.listen(3000, () => {
   console.log('Server is running on http://localhost:3000');

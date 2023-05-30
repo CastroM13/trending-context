@@ -1,98 +1,555 @@
 import time
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
+import numpy as np
+from flask_cors import CORS, cross_origin
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.naive_bayes import MultinomialNB
 
 app = Flask(__name__)
+CORS(app, support_credentials=True)
 
-@app.route('/trending', methods=['GET'])
+@app.route('/analyze', methods=['POST'])
 def get_trending():
     try:
-        options = Options()
-        options.add_argument('--window-size=1920,1080')
-        options.add_argument('--headless')  # Run Chrome in headless mode (no GUI)
+        user_input = request.get_json()["message"]
+        reviews = [
+            ("não consigo ser feliz sabendo que a lana del rey tá no brasil e eu não vou ver ela","Tristeza"),
+            ("eu vendo as fotos e vídeo das pessoas que conheceram lana del rey","Tristeza"),
+            ("lana vai fazer show sem eu lá, qual sentindo nisso??? contei td pra ela, ela fez as músicas com q minha desgraça de vida... mt injusto","Tristeza"),
+            ("me encontro em depressão profunda e o motivo é lana del rey no brasil","Tristeza"),
+            ("lana del rey já está em solo brasileiro e eu não irei vê-la pessoalmente nem irei no show dela como é triste a vida de fà pobre","Tristeza"),
+            ("não vou ver a lana del rey mais uma vez","Tristeza"),
+            ("terceira vez que a lana vem no brasil e eu só vejo ela pela tela do celular","Tristeza"),
+            ("chorando desesperadamente entregando minha saúde mental nas mãos de deus pois a lana tá no brasil e eu não vou ver ela","Tristeza"),
+            ("Uma dor assistir O DIABO VESTE PRADA sem poder mudar o final","Tristeza"),
+            ("As pessoas falando que a Lana tá muito gorda :/","Tristeza"),
+            ("ELES RECRIANDO O VÍDEO LENDÁRIO DA PONTE DE GETAWAY CAR E EU NÃO TAVA LÁ VIVENDO ISSO MEU DEUS QUE DOR QUE DOR A TRISTEZA NO MEU CORPO TÁ DOENDO DEMAIS 😭😭😭😭","Tristeza"),
+            ("Que tristeza, o Alonso merecia essa pole","Tristeza"),
+            ("meu deus que tristeza eu amo tanto ele","Tristeza"),
+            ("fico mto triste em lembrar q eles nao tiveram um desenvolvimento bom, nem mto tempo de tela juntos. gostava tanto deles dois volta skins eu te amo","Tristeza"),
+            ("já acordei super triste sem vontade de viver nenhuma ai abro o twitter e so tem post de gente dizendo que vai p show da lana del rey olha sinceramente","Tristeza"),
+            ("a lana cantando born to die em solo brasileiro e eu não estou lá","Tristeza"),
+            ("Ser fã da Ariana é sempre tudo ou nada, ou vc fica muito feliz, ou vc chora muito pq a byxa faz as coisas do nada 😭","Tristeza"),
+            ("Se a ariana se aposentar eu me mato na frente dessa cachorra","Tristeza"),
+            ("a ariana desativou o tt na véspera do natal e agora arquivou os posts do insta num domingo, não estamos mt bem","Tristeza"),
+            ("olha senhora ariana, eu espero realmente que isso seja um novo recomeço na sua vida, pq se for uma pista de que vc vai sumir de tudo, eu me mat na sua frente","Tristeza"),
+            ("uma mulher de 1,53 de altura conseguiu fazer o seu próprio fandom ir a loucura arquivando mais de 4 mil fotos, ariana grande você é maluca!","Tristeza"),
+            ("COMO QUE EU VOU FICAR STALKEANDO AS PUBLICAÇÕES ANTIGAS DA ARIANA POR HORAS AGORA","Tristeza"),
+            ("o fato da lana del rey ter ficado quase 4 anos longe dos palcos e de todos os países do mundo ela escolheu o brasil para fazer o seu grande comeback.. eu daria TUDO pra estar lá","Tristeza"),
+            ("COMO ELES OUSAM FALAR NÃO PRA LANA DEL REY 😭😭😭😭","Tristeza"),
+            ("daqui a pouco a lana del rey se aposenta e eu num fui em um único show dela","Tristeza"),
+            ("abro twitter é gente postando foto indo pro show da lana del rey abro o Instagram mais fotos abro o tiktok é foto e video de quem viu ela pessoalmente VCS ESTÃO PEDINDO EU VOU ME MATAR","Tristeza"),
+            ("como assistir o show da lana del rey ao vivo sem tv, sem multishow, sem globoplay, com alta qualidade e estabilidade","Tristeza"),
+            ("lana del rey tá no brasil e eu não vou no show dela 😭","Tristeza"),
+            ("acabei de descobrir que sou a pessoa mais triste do mundo pois não estava presente no show da lana del rey","Tristeza"),
+            ("🚨Supostamente, Lana Del Rey iria cantar uma música inédita chamada \“Bittersweet Anthem\”, mas não foi possível, porque seu pedido de tempo extra foi negado pelo festival Mita. 😭","Tristeza"),
+            ("nao vou no show da sabrina","Tristeza"),
+            ("a pirataria já foi melhor, até agora não tem um drive com a pequena sereia","Tristeza"),
+            ("O cinema da minha cidade só vai ter sessão da A Pequena Sereia dublado. Não vou conseguir ouvir a voz da Halle 🫤🥲🧜‍♀️","Tristeza"),
+            ("quero assistir a pequena sereia e não tem cinema na minha cidade, a vida é cruel as vezes","Tristeza"),
+            ("manos 28,00 a meia para assistir a pequena sereia que mundo é esse tão cruel?","Tristeza"),
+            ("2 dias desde o lançamento e nada do drive de a pequena sereia","Tristeza"),
+            ("necessito assistir o live action da a pequena sereia","Tristeza"),
+            ("cadê a pequena sereia no drive? pirataria vc já foi mais eficiente","Tristeza"),
+            ("Nenhum drive de A Pequena Sereia dublado. Só tem em espanhol. A pirataria desse país não é mais a mesma.","Tristeza"),
+            ("eu surtando pq quero vê velozes e furiosos,a pequena sereia e Barbie,mais ñ to rica ainda pra ir três vezes no cinema em menos de três meses 😭","Tristeza"),
+            ("fui ver o preço pra assistir a pequena sereia e  tá 31 reais a meia entrada?? espero soltarem no drive que eu vejo de casa mesmo","Tristeza"),
+            ("jimin is coming é projeto de fanbase mds q tristeza eu pensei q fosse outra coisa","Tristeza"),
+            ("espero que charles leclerc fique nesse estado hoje pra esquecer um pouco das palhaçadas que fizeram com ele na pista","Tristeza"),
+            ("falando sério agora: NÃO faz sentido a taylor e o taylor nation literalmente ignorar a existência do brasil seja com os fãs que vão na turnê, nas coisas que acontecem no fandom e partem dos brasileiros. eu adoraria que houvesse o mínimo de interação conosco.","Tristeza"),
+            ("Será se a Taylor Swift realmente não vai lançar You’re Losing Me no Spotify e perder a oportunidade de receber meus 0,002 centavos de stream?","Tristeza"),
+            ("então pq o future e o kendrick entregaram flow nos feats com a taylor? 😭 a ice só não combina com karma e tá tudo bem por deus sabes se acalmem","Tristeza"),
+            ("eu amo que a maioria do pequeno nicho de hater aqui do Twitter não pode chamar a taylor de fracassada ou flopada ou sem sucesso que começa usar pautas raciais extremamente sérias por conta de gosto musical… sério, vocês se perdem tanto na própria narrativa que é de da pena","Tristeza"),
+            ("paramore taylor e lana tudo fazendo show e eu nao vi nenhum ao vivo (e nem vou ver kkk ..)","Tristeza"),
+            ("como eu posso culpar taylor swift pelo verso ruim de outra artista","Tristeza"),
+            ("eu só queria o blackpink no brasil","Tristeza"),
+            ("falam tanto dos 10 principais mercados da música e o blackpink fez/vai fazer show em todos (menos o brasil 😭)","Tristeza"),
+            ("não aguento que o Blackpink vive em Bangkok, e o Brasil sem nada","Tristeza"),
+            ("todo mundo fazendo show no brasil menos o blackpink","Tristeza"),
+            ("todo mundo vem pro brasil menos o blackpink","Tristeza"),
+            ("blackpink vagabundos salafrárias ignorando o brasil mesmo nessa tour","Tristeza"),
+            ("Pelo visto o blackpink vai fazer o show da carreira nessa turnê na Tailândia, quer Brasil? Vai ficar querendo então","Tristeza"),
+            ("ainda bem q o blackpink nao vai vir pro brasil pq eu ia ficar mt triste por não ter dinheiro pra ir","Tristeza"),
+            ("em pensar que o blackpink vai dar disband e nem vai vir pro brasil","Tristeza"),
+            ("Red Velvet tá em tour é pode vim para Brasil Blackpink tá em tour pode vim para Brasil eu não tenho um centavo na minha conta 😭😭","Tristeza"),
+            ("COMO ASSIM O AESPA VAI VIM PRO BRASIL? O BLACKPINK TA HA MAIS DE 6 ANOS NA INDÚSTRIA E NEM SEQUER ANUNCIOU UM SHOW AQUI😭😭","Tristeza"),
+            ("E o Blackpink no Brasil nunca","Tristeza"),
+            ("yge é a empresa mais pobrefóbica que existe, até o #aespa vindo para o Brasil e nada do blackpink.","Tristeza"),
+            ("Sem brincadeira nenhuma , eu fiquei e estou tão triste pq não tô no Mita ! Ouvir a Lana Del Rey assim e saber que é ao vivo , mas eu não tô lá é tão frustrante ! O show tá lindo , a performance dela tá fora do normal . Que artista gigante ❤️","Tristeza"),
+            ("Eu tô tão triste Lana Del Rey carregou esse festival pobre nas costas pra eles negarem mais tempo pra ela e ainda vem o multishow desgraçado cortar pretty when you cry E eu ainda acreditei real que ela ia cantar National Anthem só pra me decepcionar ","Tristeza"),
+            ("to mt triste que n vou ver a lana no mita","Tristeza"),
+            ("Triste que Lana esqueceu de West Coast e o Honeymoon inteiro","Tristeza"),
+            ("ainda triste que a lana não cantou nem uma musiquinha do meu album fav dela","Tristeza"),
+            ("chorando pq teve show da lana ontem, e chorando pq ta tendo show da sabrina hoje e eu não fui em nenhum desses dois que vida mais triste","Tristeza"),
+            ("Primeira vez que perco um show da Lana Del Rey no Brasil, gente. Eu tô muito triste","Tristeza"),
+            ("akir no interior do nordeste em posição fetal perto do meu ventilador muito muito triste pq nao pude cantar diet mountain dew aos berros no show da lana del rey serio que tristeza","Tristeza"),
+            ("eu sou a pessoa mais triste do mundo, mais um show da Lana que eu perco","Tristeza"),
+            ("td que eu vejo da lana eu fico um pouco mais triste","Tristeza"),
+            ("me sentindo verdadeiramente triste sabendo que eu não vou no show da lana","Tristeza"),
+            ("eu to muito triste que eu vo ta na capital uma semana antes do show da lana mas nao vou conseguir ficar pro show","Tristeza"),
+            ("n ironicamente mas eu tô a ponto de rasgar meus pulsos a cada vídeo da lana que eu vejo, nossa mano pq a vida tem que ser tão triste assim","Tristeza"),
+            ("muito muito triste por saber que nunca irei num show da lana nao to bem","Tristeza"),
+            ("nada me deixa triste exceto o fato de que a lana vem ao brasil essa semana e eu nao vou","Tristeza"),
+            ("é tão triste saber que a anitta só fez 2 shows aqui em Londrina... e provavelmente não volta mais","Tristeza"),
+            ("Acho muito triste como a Anitta é mal tratada pelo Brasil. O que mais vejo é brasileiro falando mal dela e lambendo o saco de gringo que faz as mesmas coisas que ela.","Tristeza"),
+            ("Que triste ver os próprios brasileiros indo desmerecer a Anitta. ","Tristeza"),
+            ("Fico triste por quem não aceita que a Anitta é maioral e todo dia tem que ver ela vencendo","Tristeza"),
+            ("Triste ver os brasileiros criticando tando o sucesso e a buscar da Anitta. É o mesmo que você viver no Brasil e odiar ser brasileiro.","Tristeza"),
+            ("É muito triste como as pessoas são racistas... e mesmo as que não são, não se esforçam pra entender e estudar sobre o tema","Tristeza"),
+            ("fico aqui fazendo piadinha com a ariana arquivando foto, fingindo que a gente não existe e etc...mas é triste saber que ela se afastou da gente aos poucos, sla é desanimador","Tristeza"),
+            ("mais um dia tendo que lidar com a triste realidade de que não vou me casar com o kim namjoon","Tristeza"),
+            ("A REAÇÃO DELE COM A REAÇÃO DELA VSF EU SOU A PESSOA MAIS TRISTE DESSE MUNDO 😭","Tristeza"),
+            ("Muito triste ver a quantidade de malucas chorando por ela e não estou entre elas","Tristeza"),
+            ("cara eu não suporto dia de domingo sério q dia mais triste mais sem graça mais melancólico sem esperança","Tristeza"),
+            ("É muito triste o que está acontecendo no Castelão nesse momento. LAMENTÁVEL!","Tristeza"),
+            ("to triste to muito triste","Tristeza"),
+            ("dia triste clima triste mood triste me sentindo triste ouvindo músicas tristes comendo triste falando triste escrevendo tristezas choro triste","Tristeza"),
+            ("Estou muito triste amigos. Esse caderno e letra é da minha mãe que faleceu a 18 anos 😔","Tristeza"),
+            ("Triste, meu Miranha parece que não vai estar no filme 🥺 ","Tristeza"),
+            ("eu estou extremamente triste vendo esse vídeo","Tristeza"),
+            ("Bom dia gente eu fico muito triste em ver umas coisas dessas não tem necessidade disso já passaram dos limites dói muito ver isso quase chorei vendo isso mulher nenhuma merecer ser tratada desse jeito assim como a key todas as mulheres merecem respeito","Tristeza"),
+            ("O PASSADO TRISTE DO MUICHIRO PELAMOR DE DEUS MATARAM O IRMÃO GÊMEO DELE","Tristeza"),
+            ("Confesso, me dá uma sensação um pouco triste pensar que a geração atual dos shounens que nasceram juntos com Boruto, vai acabar e ele vai continuar sendo o único que sobrou dessa geração. Até One Piece vai acabar e Boruto ainda vai continuar por mais uns 10 anos. Pqp...","Tristeza"),
+            ("Triste por estar ouvindo tanto o renaissance, o final de heated todo dia.. daqui 2 meses eu n vou suportar 1seg mais das musicas vou saturar ate o fin","Tristeza"),
+            ("o foolish não merecia isso, a leo não merecia isso, eu to realmente muito triste por eles dois","Tristeza"),
+            ("Triste notícia para o futebol mineiro. A cidade de Uberaba em luto! Fim do Uberaba Sport Club, minha solidariedade à todos os torcedores do nosso querido Zebu, de tantas histórias no nosso futebol. ","Tristeza"),
+            ("GNT EH SERIO COMO EU VOU SOBREVIVER SEM ELE SEM MEU KENDALL ROY EU NAO CONSIGO 😭😭😭😭😭😭😭😭😭😭😭😭😭","Tristeza"),
+            ("menos de 1 hora pra eu ver o kendall pela última vez 💔","Tristeza"),
+            ("dia de luto para nós kendall roy girlies","Tristeza"),
+            ("Fico triste da jennie estreiar nessa bomba anunciada que é the idol😭😭😭😭😭","Tristeza"),
+            ("Não estou preparada para a obmep amanhã","Tristeza"),
+            ("vou ter q fazer prova da OBMEP💔💔","Tristeza"),
+            ("Vai ter provas, obmep e simulado quase tudo essa semana 😭😭😭","Tristeza"),
+            ("Amanhã tem obmep 😭","Tristeza"),
+            ("eu não sei matemática mano 😭 #obmep","Tristeza"),
+            ("Mentira que amanhã tem OBMEP😭","Tristeza"),
+            ("Mds a minha escola vai participar da OBMEP. Eu to fudido pq SOU DE HUMANAS 😭😭","Tristeza"),
+            ("Uns dos meu piores pesadelos tá chegando, a OBMEP 😭","Tristeza"),
+            ("não quero fazer a obmep amanhã 😭","Tristeza"),
+            ("Amanhã tem OBMEP da nem pra faltar 😭😔","Tristeza"),
+            ("tiraram, tiraram meu volebas com adm por causa da prova da OBMEP😥😥😥","Tristeza"),
+            ("não sei se vou sobreviver por muito tempo sem spotify premium já vou avisando","Tristeza"),
+            ("não dá pra acreditar que depois da sequência hotd the white lotus tlou e succession os domingos vão ser tristes novamente","Tristeza"),
+            ("adeus pra maior abertura de série de todos os tempos desde the white lotus e game of thrones","Tristeza"),
+            ("Rihanna volta por favor, estamos morrendo de saudades 😭","Tristeza"),
+            ("edit fahir com essa música da rihanna, vocês me destroem, assim não dá 🥺","Tristeza"),
+            ("hater do blackpink dúvida delas, mas parece que o fandom dúvida mt mais","Tristeza"),
+            ("ela não querendo largar a helena💔","Tristeza"),
+            ("TRISTEZA NÃO TEM FIM 😭","Tristeza"),
+            ("\"ela diz q vai ficar com helena e pretende se separar\" 😭😭😭","Tristeza"),
+            ("Queria ter amgs q tbm gostassem de blackpink q vida triste","Tristeza"),
+            ("Minha vida não interagiu comigo hj tô triste","Tristeza"),
+            ("meio triste ver isso sabendo que depois do debut os blinks vão jogar hate nelas e o fandom das babymonsters irão fazer o mesmo com o blackpink","Tristeza"),
+            ("mds quando ele aparecia nas lives dela e eles brincavam e nos vídeos do blackpink o fandom chamando ele de kai (cachorro) as fotos com o kuma e as roupinhas combinando mds que tristeza foi uma lenda e viveu muito como um rei to muito triste de verdade","Tristeza"),
+            ("ai cara toda vez que o blackpink faz show eu fico triste que elas não vão vir pra cá 😭","Tristeza"),
+            ("mano o kai cachorrinho da Jennie faleceu, eu tô muito triste. só quem tem e é apegado em um animalzinho de estimação sabe o quanto isso dói 😭","Tristeza"),
+            ("será que eu nunca vou namorar uma menina que goste da taylor swift, blackpink e dc pra gente ficar agarradinhas na cama assistindo coisas relacionadas a isso.. que vida triste pqp","Tristeza"),
+            ("Triste que provavelmente nunca verei Blackpink","Tristeza"),
+            ("nossa fiquei tão triste agora, meus sentimentos a jennie 😔","Tristeza"),
+            ("o aespa vindo pro brasil me deixa triste porque meu deus quando será o blackpink.","Tristeza"),
+            ("Eu tô muito triste com a informação de que depois que fui embora do aster tocou jisoo e mais duas da blackpink caras, que mundo injusto","Tristeza"),
+            ("eu fico triste só d pensar q na época do debut deles, eu simplesmente ignorei, pq só era viciada em Blackpink e BTS. Se eu nn tivesse ignorado seria moa desde o debut","Tristeza"),
+            ("Uma imagem define muito bem a palavra saudade 🥺😭😭😭","Tristeza"),
+            ("Eu não aguento mais esses adiamentos sem fim. A fase Chromatica ta mais confusa que clipe de \"G.U.Y.\" 😞😖","Tristeza"),
+            ("agora que percebi que o line up do mita está faraônico mds muito triste ser pobre","Tristeza"),
+            ("triste vendo os fãs da lana e da sabrina indo pro mita com blusa delas e eu mal tive dinheiro pros ingresso e por isso vou igual um mendigo","Tristeza"),
+            ("amando ver essa briga de RJ x SP sobre o mita mas ao mesmo tempo fico triste como nós de Salvador só temos voz no carnaval o resto do ano ficamos pianinho sem poder entrar nesses debates","Tristeza"),
+            ("queria tanto estar no Mita sinceramente muito triste","Tristeza"),
+            ("triste que o mita n vai ser 20% do que o primy foi ne pq essa organização ta um mico, mas eh isto vou aproveitar bem mto minha lanita esse sábado e vou estar com pessoas que eu amo que vai deixar tudo 1000x melhor 😭❤️","Tristeza"),
+            ("pensando em desativar até passar o mita pois estou muito triste vendo as coisas","Tristeza"),
+            ("ta caindo a ficha q eu nao vou ver a lana no mita e to ficando triste","Tristeza"),
+            ("Essa noite eu sonhei que a florence fez um show na minha festa de aniversário, cara eu to tão triste que não vou ver ela no mita 😪😪","Tristeza"),
+            ("eu tô tão triste por não ter ido no mita, só queria ter visto a lana sabe","Tristeza"),
+            ("silenciando a palavra lana rio de janeiro mita não quero saber se eu fingir que ela não está aqui não ficarei triste","Tristeza"),
+            ("minha pack da sabrina agr😭😭😭😭😭😭 mds como sou triste e depressiva, mita vc me paga","Tristeza"),
+            ("eu to mt triste stray kids pq vcs fizeram isso comigo","Tristeza"),
+            ("É triste saber que nunca irei ao um Show de Charlie Brown, Rita Lee, Cássia Eller, Belchior, Raul Seixas, Elis Regina, Gal Costa...","Tristeza"),
+            ("as vezes quando eu tô bem triste eu lembro que se tivessem botado o neymar pra bater o último pênalti a gente teria chegado mais longe na copa","Tristeza"),
+            ("A notícia mais triste do esporte esse ano depois do racismo do Vini Jr. é a ausência do Rômulo Mendonça no histórico Jogo 7 das finais da NBA na Conferência Leste. Força grande Amigo. Você é um ícone especial da narração esportiva. Será uma falta terrível para história da NBA.","Tristeza"),
+            ("Estou voltando para etapa onde não falo com ninguém, não consigo dormir bem e fico triste o tempo todo...","Tristeza"),
+            ("MDS EU TO TÃO TRISTE 😭😭😭😭😭","Tristeza"),
+            ("aí, as vezes fico desanimada demais, e isso é ruim e triste.","Tristeza"),
+            ("não me deixa esquecer da triste fórmula 1","Tristeza"),
+            ("que Resultado triste o da F1 de ontem, lamentável","Tristeza"),
+            ("Triste dia para a democracia brasileira 😪. Recebemos em nosso solo brasileiro hoje dia 28/05/23 com as  honrarias de chefe de Estado o NARCODITADOR Nicolás Maduro. Este vídeo é para lembrar o quanto à agenda progressista está avançando e corre  a todo o vapor para a destruição…","Tristeza"),
+            ("Pq as pessoas são tão cruéis senhor 😥😢😢 como podem maltratar um animal indefeso 😭😭😭😭","Tristeza"),
+            ("Como é que conseguem fazer mal a animais, fds eu tive um animal que infelizmente não consegui salvar e outros que podem e matam os animais 😭","Tristeza"),
+            ("é lamentável que as pessoas não conseguem focar em outra coisa a não ser estética","Tristeza"),
+            ("muito triste esses comentários maldosos com a Lana","Tristeza"),
+            ("ô me sentindo a elsa aqui ao invés da ariel tá lamentável 😭😭😭","Tristeza"),
+            ("a pequena sereia tô esperando ele desde quando eu soube das gravações e teve aquele show lamentável de r4c1sm0 contra a halle","Tristeza"),
+            ("O trailer do filme \"A Pequena Sereia\" causou uma enorme polêmica, simplesmente porque a personagem principal é negra. É lamentável ler as postagens racistas contra o filme.","Tristeza"),
+            ("muito triste todo o racismo com o a Halle, as pessoas não tem coração","Tristeza"),
+            ("Eu não entendo como as pessoas podem maltratar um animal 😪","Tristeza"),
+            ("eu assim na faculdade/trabalho pensando que eu poderia está no RJ atrás da Lana Del Rey","Raiva"),
+            ("odeio todos que encontraram com a lana no aeroporto ou que vão ver ela esse sábado","Raiva"),
+            ("A Lana já tá quase em solo brasileiro e minha ficha ainda não caiu de que ela vai tá bem aqui e não vou ver ela QUE ÓDIO BCETÃO","Raiva"),
+            ("toda vez que eu vejo O Diabo Veste Prada eu fico pra MORRER com esse namorado doente dela e esses amigos extremamente tóxicos que simplesmente não conseguem conviver com o sucesso profissional de alguém que eles gostam, não entendem o lado dela e não relevam nada","Raiva"),
+            ("É impossível assistir o diabo veste Prada sem achar o namorado dela um babaca","Raiva"),
+            ("A hybe desmereceu o Yoongi e o Jimin em uma só matéria da Weverse Magazine, vocês tem noção do quanto isso é um absurdo? A PRÓPRIA EMPRESA DESMERECENDO SEUS ARTISTAS! Os quais não deixaram aquela empresa cair no limbo!","Raiva"),
+            ("Já que na base no diálogo não funciona com a hybe, vamos ter que partir para a porrada.","Raiva"),
+            ("incrivel que a hybe nao consegue fazer O MINIMO pelos seus artistas e ainda consegue desmerecer o trabalho de quem realmente os ajudou, ta insuportável isso","Raiva"),
+            ("mais fácil você ser o mamute, lana sendo gorda ou magra ainda consegue ser mais bonita e talentosa que você, e aliás, vai aprender a definição de 0besa pq eu tenho certeza que não se aplica a lana.","Raiva"),
+            ("Tô pronta para cair na porrada com qualquer um que falar que a Lana Del Rey tá gorda","Raiva"),
+            ("\“Ain a Lana ta gorda\” \“Prefiro ela magra\” fodam-se, NINGUÉM pediu a opinião de vocês, absolutamente NINGUÉM, a mulher tá vivendo uma vida maravilhosa, vocês estão é com inveja","Raiva"),
+            ("pq vcs tao chamando a lana de gorda sendo que ela ta normal???","Raiva"),
+            ("a galera chamando a lana de gorda??????? não tô entendendo","Raiva"),
+            ("nossa vai toma no cu quem fica falando que a Lana dela rey tá gorda, ela tá linda pra caralho como sempre foi","Raiva"),
+            ("Sim denunciem muito, usem o comentário que ela chama a lana de gorda pra denunciar e dps denunciem a conta em si!!!! Logo cai","Raiva"),
+            ("Esses fdp que estão chamando a Lana de gorda pq não vão toma no meio do cu deles seus nojentos do krlh fdp sebosos horríveis","Raiva"),
+            ("Esse pessoalzinho aí que tá falando que a lana tá gorda e sla oq, vão tudo tomar no cu, seus sem noção do caralho, não tem oq agregar não fala nada.","Raiva"),
+            ("af odio dessas pessoas xingando a lana de relaxada, de gorda e tals ela ta linda q saco","Raiva"),
+            ("Crlh vão para a pqp as pessoas q tão falando q a lana tá gorda, a lana é pft dms🤍🙁","Raiva"),
+            ("COMO ALGUÉM OUSA FALAR QUE A LANA DEL REY ESTÁ GORDA","Raiva"),
+            ("Gorda é vc que passa o dia inteiro deitada e comendo x burguer procurando xingamento pra quem tá fazendo o sucesso mor, se toca balofa , a Lana tá hitando no mundo inteiro e vc aí esquecida, tá querendo muita pica vc pra tá falando mal da rainha","Raiva"),
+            ("eu odeio army com todas as minhas forças, são o câncer desse fandom, tão destruindo tudo de bom que o fandom representa e a nossa relação com o bts, os quotes disso aqui são a prova disso, vocês são baixas","Raiva"),
+            ("Eu odeio quem fala mal do BTS, odeio quando dizem que é infantil","Raiva"),
+            ("Eu odeio bts e kpop quem descorda está errado","Raiva"),
+            ("Eu acho que nunca odiei tanto uma empresa como eu odeio a hybe.","Raiva"),
+            ("a lana del rey assim no camarim agora indignada e com razão depois do MITA expulsar ela do palco e privar ela de lançar a música inédita 😭 inferno de festival","Raiva"),
+            ("SILENCIANDO AS PALAVRAS: LANA DEL REY, MITA, RUIVA, FESTIVAL MITA, LANA ... não quero saber de nada e tenho raiva de quem sabe","Raiva"),
+            ("odeio ficar menstruada, qqr coisinha eu ja enceno um alvoçoro na mia cabeça é eu me descabelando é eu chorando é eu encenando a cururu eu gritando de raiva tudo ao som de lana del rey in just ride era","Raiva"),
+            ("em completo êxtase vendo ela pela TV, não tenho raiva de ser pobre eu tenho é ódio.","Raiva"),
+            ("tenho raiva de todo mundo que tá no show da lana del rey, pois deveria ser eu lá","Raiva"),
+            ("ainda com raiva da lana del rey por ter abandonado o honeymoon  muda o @ do instagram agora ingrata","Raiva"),
+            ("meudeus que odio lana del rey na praia de copacabana e eu trabalhando mas obv q n teria ido pra praia de copa msm assim mds q raiva deveria ter encontrado minha mae","Raiva"),
+            ("AI QUE RAIVA QUE EU N FUI NO SHOW DA LANA DEL REY AI QUE VONTADE DE DESAPARECER","Raiva"),
+            ("gente que agonia ter que esperar 30 minutos lana del rey vc me paga","Raiva"),
+            ("NÃO MULTISHOW EU NÃO QUERO VER REPRISE DE OUTROS SHOWS QUE ÓDIO LANA DEL REY TU ME PAGA","Raiva"),
+            ("que ódio q essa mocreia q só sabe as versões speed up do tiktok vai ver a lana del rey e eu não","Raiva"),
+            ("Ódio do Elon Musk porque pra colocar vídeos longos aqui agora tem que pagar 😡😡😡 queria postar a maravilha que foi o show. 🥲","Raiva"),
+            ("quase explodi meu tablet pra tentar assistir a pequena sereia pq ntenho dinheiro pra ir no cinema INFERNO","Raiva"),
+            ("lá vem esse tiktok forçar que a vanessa carregou a pequena sereia vou me m na frente deles","Raiva"),
+            ("Um monte de adolescente metido a influencer na minha sala pra a pequena sereia eu não mereço isto","Raiva"),
+            ("charles leclerc se você quiser sair do carro, ir pro box e quebrar todo mundo na porrada saiba que eu te apoio","Raiva"),
+            ("o que mônaco ODEIA o nome Leclerc não é brincadeira…","Raiva"),
+            ("a taylor literalmente decidiu regravar os álbuns pra ter o direito sobre o trabalho dela e esse SEMPRE foi o desejo dela e agora metem essa de que esse cantor de uma banda horrível e flopada vai pra casa dela pra ajudar ela a escrever um álbum? vão pra casa do caralho","Raiva"),
+            ("eu acabei ver um vídeo no tiktok com teoria sobre a taylor estar namorando a ice spice PAREM URGENTEMENTE","Raiva"),
+            ("você tentando diminuir a taylor pra aquilo que faz um artista ser um: ela tem força nos streamings, no pure sales e em público em turnês. se ela é \“only apps\” o que é um artista pra você?","Raiva"),
+            ("Não aguento que é sempre um BRANCO acusando a Taylor de estar cometendo o crime por ela ser branca e não falar sobre nada diferente do que ela é","Raiva"),
+            ("nenhuma musica do midnights muito menos karma tinha espaço p rapper e sinceramente só fez sentido ter no 1989 e rep agora tenho q ler q não dá p encaixar rapper em música da taylor pq é de branquela como se future e kendrick não melhoraram as músicas dela","Raiva"),
+            ("n vejo a mínima graça nessas \"piadas\" e edits c a postura da taylor, fico literalmente assim c esse tipo de \"humor\"","Raiva"),
+            ("O ódio que eu sinto por essa garota é o mesmo ódio que eu sinto pelo simon","Raiva"),
+            ("TO TRISTE QUE O GOL DO RONY FOI ANULADO, TO BRAVA COM ESSE JUIZ DE MERDA, QUE ODIO SERIO","Raiva"),
+            ("eu tava dormindo tao bem e o bruno me acordou que ódio caralho","Raiva"),
+            ("mano como pode eu mora no rio é não ter um ingresso para o mita para ver sabrina carpenter odeio essa vida de pobre","Raiva"),
+            ("SE FODE TODO MUNDO QUE TÁ NO MITA AGORA VENDO A SABRINA ODEIO SER POBRE","Raiva"),
+            ("MEU DEUS A SABRINA E A LANA ESTÃO NO BRASIL E EU NÃO VOU VER NEMHUMA DAS DUAS ODEIO SER POBRE","Raiva"),
+            ("é mita festival, vcs trouxeram a sabrina e eu odeio vcs por isso! espero q ela volte solo na próxima vinda pro br","Raiva"),
+            ("tô com depressao. sabrina eu vou chorar TE ODEIO","Raiva"),
+            ("EU NAO VOU NO SHOW DA FLORENCE NEM DA LANA NEM DA SABRINA CARALHO ODEIO VIVEEEEER","Raiva"),
+            ("odeio o organizacao das coisas da sabrina. primeiro que show de festivak e show de turnê é COMPLETAMENTE diferente. ali vc tem que fazer um show foda com as suas mais conhecidas em grande maioria, é um show superficial mano eai ela me poe um show igualzinho ao da tour vsf sabe","Raiva"),
+            ("sabrina carpenter no brasil e eu n vou ver ela odeio ser pobre","Raiva"),
+            ("eu poderia ir para o galeão  ver a Sabrina mas do indo para a escola, odeio minha vida","Raiva"),
+            ("odeio clichês, mas queria viver um romance assim","Raiva"),
+            ("Odeio quando as pessoas me retratam como uma \“ pessoa difícil de lidar\”. Eu sou difícil de lidar por não aceitar que ngm me trate como qualquer coisa, por não deixar me levar por coisas banais, e afins. Se isso é difícil de lidar, vou ficar sozinha e sem amigos p smp kk","Raiva"),
+            ("odeio esses cochilos de meia hora, eu acordo insuportável","Raiva"),
+            ("EU ODEIO MINHA VIDA","Raiva"),
+            ("aí q saco, odeio todos vocês!","Raiva"),
+            ("To gastando todo meu dinheiro com chocolate, te odeio ansiedade","Raiva"),
+            ("todos que colocaram a sabrina na minha tl eu odeio vcs odeio todos","Raiva"),
+            ("Odeio quando pego ranço da cara de alguém tudo que a pessoa faz me enoja","Raiva"),
+            ("odeio essa galera que fica rivalizando a Olivia e a Sabrina, vsf deixem elas no canto delas","Raiva"),
+            ("EU ODEIO TRABALHO EM GRUPO, ODEIOOOOOOOO!!","Raiva"),
+            ("n poderei ver a sabrina endemoniada cantando bet u wanna, n poderei gitar q sou uma puta, n poderei chorar cantando decode e eics, n poderei explodir cantando vicious, odeio viver","Raiva"),
+            ("a lana, florence e a sabrina vindo fazer show no dia do meu aniversário e eu não vou ver nenhuma <33 porra cu de merda vsf lixo de buceta odeio ser pobre","Raiva"),
+            ("EU ME ODEIO Q EU DORMI ENQUANTO A SABRINA TAVA APRESENTANDO AAAAAAAAAA","Raiva"),
+            ("Eu odeio os fãs da olivia que ataca a sabrina, eu como fã das duas me da nojo saber que existe gente assim","Raiva"),
+            ("mita festival eu te odeio por ter anunciado a sabrina num dia e no outro ja ter começado as vendas","Raiva"),
+            ("odeio entrar nas reports do jungkook pq qro arrastar todas as antis dele pelos cabelos cortar a língua delas os dedos fazer picadinho de todo mundo que tá lá falando mal dele CADELAS DEMONIAS","Raiva"),
+            ("a sabrina toda pitica no mita ai como eu odeio ser pobre","Raiva"),
+            ("odeio Anitta que precisa fazer música em espanhol pra tentar ganhar notoriedade lá fora","Raiva"),
+            ("Odeio ver os looks da Anitta vazando pra clipe, pra mim perde a graça toda","Raiva"),
+            ("a cada dia q passa eu odeio mais a Anitta, o tanto que essa mulher é baixa não tá escrito 🤦🏼‍♀️🥴","Raiva"),
+            ("pq caralhos o amaral costa do metrópole demora tanto serio odeio","Raiva"),
+            ("eu ODEIO como a anitta n percebe a imagem q passa do brasil quando ela faz essas coisas tipo vai se fuder porra deixa de ser nojenta","Raiva"),
+            ("odeio fãs de anitta com todas as forças","Raiva"),
+            ("pedi pro DJ CLARAMENTE BRASILEIRO tocar Anitta e ele fez o tipo do gringo que não conhece a artista. ODEIO brasileiros vira latas morando no exterior. O-D-E-I-O !","Raiva"),
+            ("Cara a anitta é mt ruim eu odeio tudo q ela faz qq outra cantora sem graça é melhor q ela","Raiva"),
+            ("Eu odeio a empresária da Anitta por ter dado aquela entrevista falando do poder de investimento de grandes empresários do agro na música sertaneja.","Raiva"),
+            ("odeio a anitta odeio fa da anitta nao suporto todos","Raiva"),
+            ("ELON MUSK... POR QUE VOCÊ SUSPENDEU A PIOVANI ??? SE EU ODEIO É A ANITTA E A JULIETE, POR QUE NÃO SUSPENDEU ESSES DOIS MONSTROS??","Raiva"),
+            ("FIQUEI ABORRECIDA QUE SUSPENDERAM A CONTA DELA. ELA ACHOU QUE EU FOSSE A EYRE TRUBUFU,  A JULIETE OU PIOR A ANITTA. AFFF...PIOVANI ODEIO A ANITTA TANTO QUANTO VOCÊ ODEIA.","Raiva"),
+            ("eu odeio clipes da anitta em que ta la a bandeira do brasil enorme no fundo e ela cantando espanhol","Raiva"),
+            ("eu odeio a anitta e ela é uma sem talento, sem sucesso e sem beleza","Raiva"),
+            ("EU ODEIO BASQUETE ESPORTE DE MERDA DESGRAÇA LIXO INFERNO CAPETA DEMÔNIO SATANÁS ESTERCO ANITTA VÔMITO ZÉ CU ARRIMBADO CHUPA CABRA ET DE VAGINA BOMBA ATÔMICA NOLSONARO DO CARALHO INDERNO BCT","Raiva"),
+            ("DE VDD eu odeio quando começa papo envolvendo Anitta e local que ela cresceu pq começam a falar como se Honório fosse um lugar assim incrível","Raiva"),
+            ("Ela parece aqueles gringos que pra conquistar o Brasil, falam em algum programa de tv \“hmmm coxinha, pão de queijo\” aleatoriamente com um sotaque arrastado. Qualquer coisa ela tá \"uhuul favelaaa\” ","Raiva"),
+            ("CARA QUE PORRA FOI ESSA","Raiva"),
+            ("QUE ODIO COMO EU ODEIO MORAR NO FIM DO BRASIL PRA QUE EXISTIR SE EU NAO POSSO VER A LANA AO VIVO MEUDEUS COMO EU SOU TRISTE","Raiva"),
+            ("mds odeio ser pobre daria de tudo pra estar agr vendo a lana 😭😭😭😭","Raiva"),
+            ("hoje o dia vai ser extremamente horrível. eu vou perder o show da lana, não vou ver a lana de perto, não vou escutar ao vivo a lana cantando as músicas da minha vida, sla, to muito triste. odeio ser pobre","Raiva"),
+            ("odeio todas as pessoas que vão pro mita ver a lana e a florence","Raiva"),
+            ("odeio ser pobre, não estou no show da lana del rey e ainda tô assistindo a transmissão oficial por link pirata","Raiva"),
+            ("Meu Deus a obmep já é amanhã e eu nem sei matemática básica direito AAAAAAAA QUE ÓDIO","Raiva"),
+            ("obmep amanhã só lembro desse fdp do ano passado","Raiva"),
+            ("amanhã tem a prova da OBMEP vsf","Raiva"),
+            ("OBMEP SEU CÃO SEU DEMÔNIO EU TE ODEIO TANTO. TANTO TANTO TANTO","Raiva"),
+            ("Olha q praga, eu simplesmente esqueci da existência da obmep e quando eu chego na sala hj, o prof me solta q a prova já é amanhã","Raiva"),
+            ("Meu Deus a obmep já é terça-feira e eu nem sei matemática básica direito AAAAAAAA QUE ÓDIO","Raiva"),
+            ("3 AULAS FAZENDO OBMEP??????????????????????????????","Raiva"),
+            ("quem foi o filho de uma puta que vazou a porra da obmep, o povo não liga mesmo pras olimpíadas","Raiva"),
+            ("amanha tem prova da obmep  q inferno","Raiva"),
+            ("Fiquei sabendo hoje dessa poha de OBMEP","Raiva"),
+            ("amo que a amanhã tem OBMEP e a escola simplesmente NÃO AVISOU E NEM PREPAROU NINGUÉM DE NOVO","Raiva"),
+            ("porra de obmep, toma no cu","Raiva"),
+            ("E AMANHÃ AINDA TEM OBMEP VAI TOMAR NO CUUUUUUU","Raiva"),
+            ("tentei fzr uma questão da obmep agora só faltei cair pra trás vsfffff que matéria do inferno","Raiva"),
+            ("claro que ela é a cantora mais rica do mundo, teve que apelar p vender maquiagem pq se dependesse das vendas das músicas essa kdela passava fome","Raiva"),
+            ("chega a ser insuportavel as duvidas sobre as vendas da rihanna","Raiva"),
+            ("pessoal usando esse video do token pra atacar a rihanna sendo que as palavras dela servem pra toda/o artista da indústria pop","Raiva"),
+            ("e no que isso muda meu deus? mds os fãs dessa mulher tratam ela como se fosse a maior compositora do mundo sendo q não é","Raiva"),
+            ("De ontem pra cá o tanto de fã chato da taylor atacando a Rihanna, mona?? Você é maluca????","Raiva"),
+            ("a bancada do grammy escolhendo um álbum medíocre pra dar um prêmio é bem assim","Raiva"),
+            ("os fans da taylor esquecem de PROCURAR as informações e acham que o maior hit da Rihanna foi o escrito pela Taylor Swift sendo que ele aparece na ÚLTIMA posição na lista dos 10 maiores hits dela","Raiva"),
+            ("pelo amor de Deus, essa mulher tá realmente desmerecendo o talento natural da Rihanna????","Raiva"),
+            ("Só o vocal e a presença de palco da rihanna já mata essa corcunda da Taylor, só saber compor e ter um monte de fã desocupado pra fazer streaming é fácil","Raiva"),
+            ("Tem que ter muita coragem em jogar hate na @rihanna e passar pano para nazista 😑","Raiva"),
+            ("acho tao engraçado esse pensamento levando em conta q hj rihanna é bilionaria mas antes das marcas ela ja era mais rica q a taylor e o principal lucro de ambas eram as musicas","Raiva"),
+            ("chamando a rihanna de mediocre pra defender uma certa loira que juram que compõe, mas se for pra escrever um karma is a cat e umas músicas nível xuxa é melhor nao escrever mesmo","Raiva"),
+            ("tem que ser muito burro pra achar que ela está atacando a rihanna em específico e mais burro ainda em pensar que a lógica da gaiola de ouro não se aplica a basicamente todos os artistas mainstream.","Raiva"),
+            ("ai e sinceramente eu n aguento que ainda chamam esse descaso da yg com o blackpink de \"estratégia\" isso n é estratégia é só incompetência mesmo","Raiva"),
+            ("O ângulo do beijo assim, só vamos ver a nuca da Helena. Glob0 canalha!","Raiva"),
+            ("Pq do nada começaram a falar das promoções de merda da yg pro blackpink?","Raiva"),
+            ("O maior mico que eu já vi por aqui é ver blink mamar esses famosinhos só pra ter alguma validação deles quando todo dia atraem hate pro blackpink","Raiva"),
+            ("O Blackpink ja tendo a carreira consolidada sem ter que depender de ngm , e vcs discutindo se elas durariam 2 anos sem comeback ? me poupe, elas n flopam nem se elas quiserem","Raiva"),
+            ("morro que os blinks que imploram pro blackpink mudar de conceito e produtor são os mesmo que acham sour candy ruim, sendo que essa é a música mais experimental da carreira delas","Raiva"),
+            ("Nunca vou entender virar fã de um grupo e depois querer mude o conceito completamente?? Tem outros grupos com outros conceitos. Acompanhem eles então. O BlackPink tem a própria identidade e quem não gostar, tchau e bença.","Raiva"),
+            ("Eu só entro aqui pra passar raiva, criei essa conta só pra acompanhar melhor o blackpink porque no insta era muito atrasado, mas toda vez que eu entro é 100 tweets de hate a cada rolagem na tml, tenho nem saúde mental mais","Raiva"),
+            ("Não me conformo mesmo, porque eles nem escondem mais o machismo mascarado, de descaso, então eu também não vou esconder minha raiva não.","Raiva"),
+            ("BLACKPINK MERECE MUITO MAIS, JA QUE SAO ELAS QUE PAGA MARMITA NAQUELA POURA","Raiva"),
+            ("o fato que o blackpink me faz ser chamada de kpoper me deixa doente de raiva","Raiva"),
+            ("Eu tô odiando esse comeback de doenças.","Raiva"),
+            ("CARAKHO EU AMO O BLACKPINK E A SELENA MAIS PUTA QUE PAROUA JISOO NÃO CANTOU PRATICAMENTE NADA ?MEU DEUS EU TO NUM ÓDIO QUE MEU DEUS QUE RAIVA PORRA CARALHOOOOOOOLLLLL","Raiva"),
+            ("Eu realmente amo todas as meninas do blackpink, mas me dá raiva o descaso com a jisoo. Como q querem q nesse ano tenha o retorno da jennie sendo q é o ano solo da jisoo. E o pior de tudo é os blink’s achando isso o máximo","Raiva"),
+            ("Concordo plenamente com o Portal, dívida ter mais promoções, mais divulgação, poxa foram dois anos esperando esse comeback, esse álbum. As meninas merecem muito mais do que isso, isso é muito descaso com o Blackpink, que raiva, empresa lixo, medíocre!!","Raiva"),
+            ("Que raiva! Para a YG valorizar o Blackpink foi necessário protestos e uma lapada de caminhão na porta da YG, será se vai ser necessário blinks fazerem isso de novo para essas premiações dar  reconhecimento ao Blackpink? Estou farta de injustiças. ","Raiva"),
+            ("Tem galera q é de boa ser fã de uma e respeitam as outras, agr tem um povo q faz questão de jogar hater, aí o ódio é grande. Apreendi a focar nas coisas boas q são mt maiores e relevantes. Não dá palco pra quem é insignificant3","Raiva"),
+            ("eu explodo aquela empresa se o blackpink n for no mama, vcs n tão entendendo a raiva q vai me possuir.","Raiva"),
+            ("blackpink é um grupo que tem músicas ótimas mas eu como fã da jisoo simplesmente não consigo assistir um mv ou escutar uma música sem sentir raiva. e quando eu falo raiva, é MUITA raiva.","Raiva"),
+            ("que raiva eu tenho da gaga, o chromatica merecia um desse tamanho, não aquele palquinho de quermesse","Raiva"),
+            ("Q ÓDIO A GAGA NA DIVULGAÇÃO DE CHROMATICA ","Raiva"),
+            ("que ódio da gaga por ter trocado essa jóia por aquela versão bomba que entrou no chromatica","Raiva"),
+            ("MEUUUU QUE ODIO, COMPREI O VINYL DA KATY E CHEGOU UM CD DO CHROMATICA @umusicbrasil EU COMPREI COM VOCESSSSSSS E VOCES TROCARAM AS ENTREGAS, VEIO COM NOME DE OUTRA PESSOA NO NOTA FISCAL","Raiva"),
+            ("EM CHROMATICA NÃO TEM INTERNET QUE ÓDIO","Raiva"),
+            ("se não fosse pelas gravações de joker a gaga iria adicionar mais datas na chromatica ball e ia ter +200m q ódio","Raiva"),
+            ("QUE ÓDIO!!! Não acredito que cai na mentira da The Chromatica Ball Tour aqui no Br","Raiva"),
+            ("Mano a Gaga morre no final do clipe alternativo de 911 aaaaaa que ódio caralho","Raiva"),
+            ("Eu tenho UM ÓDIO que o Nicola só foi fazer um styling polido depois de 911 😭 looks horrendos na primeira parte da era Chromatica","Raiva"),
+            ("Se eu me animar pro chromatica dnv e não vier aí eu vou cometer um crime de ódio","Raiva"),
+            ("mano a era chromatica ia ser TÃO perfeita se não fosse o coronavírus pra atrapalhar, é sério da vontade até de chorar de ódio","Raiva"),
+            ("não aguento mais esperar pelo chromatica remix","Raiva"),
+            ("O ÓDIO dessa identidade visual do Chromatica. Eu não deveria ter que me esforçar tanto pra ler algo.","Raiva"),
+            ("Lady Gaga faça alguma coisa pela era Chromatica não aguento mais seus fãs desocupados fazendo toda semana uma thread diferente pra atrair hate pra Katy Perry","Raiva"),
+            ("não aguento mais ver foto de gente com o vinil do chromatica na timeline","Raiva"),
+            ("Eu já não gostava desse Jean L antes, agora q esse arrombado burro postou uma conversa dele próprio sendo racista quero q se foda ele e essa vadia da Thayse também, tudo farinha do mesmo saco.","Raiva"),
+            ("pois repito que o jean L é um viado o raluca é uma vadia a thayse uma vagabunda o teri um corno esse yanni um manja rola e o diggo um filho de uma puta","Raiva"),
+            ("agr oq faltava msm esse lixão do jean l na minha tml, num quero sabe dessa treta não","Raiva"),
+            ("Mano a Thayse foi muito filha da puta EM QUE MUNDO ALGUEM SÃ DA CABEÇA TRAI O TERI KIM COM O JEAN L TEM QUE SER MUITO BURRA","Raiva"),
+            ("eu assisti UMA FUCKING HORA DE DOSSIÊ JUNTO DO MOUNT pra um SIMPLES PRINT do Jean L refutar tudo dito...","Raiva"),
+            ("raluca vai toma no seu cu, jean L vai se foder, diggo vai pra casa do caralho","Raiva"),
+            ("VAI TOMAR NO CU FODASE O RALUCA FODASE O JEAN L EU NAO ME IMPORTO TO CAGANDO PQP NAO AGUENTO MAIS ESSA BOSTA NA MINHA TL QUERO Q TODOS OS ENVOLVIDOS SE FODAAAAAM","Raiva"),
+            ("A Lana é uma verdadeira ARTISTA, a mulher fez uma viagem de 10h e mesmo assim parou pra falar com todo mundo. Ela ficou lá por mais de 1h conversando, dando autógrafos, abraços e tirando fotos. Isso não é pra qualquer artista, a surra no Drake","Felicidade"),
+            ("NÃO ACREDITO QUE TO RESPIRANDO O MESMO AR QUE A LANA DEL REY","Felicidade"),
+            ("Vocês têm noção que a Lana ficou 5 anos sem fazer show e escolheu o Brasil pra começar??? Ela tava tão feliz de estar aqui que foi um amor com todo mundo. No final, sempre seremos os mais amados","Felicidade"),
+            ("Essa cena final de O Diabo Veste Prada é sensível, bonita e te dá aquela sensação gostosa de encerramento de filme que você sabe que ficará na memória.","Felicidade"),
+            ("1, 2, 3, 4! ANOTOU A PLACA?! O CASEMIRO JOGOU DEMAIS E O UNITED PASSEOU PRA CIMA DO CHELSEA!","Felicidade"),
+            ("O MANCHESTER UNITED ESTÁ CLASSIFICADO PARA A PRÓXIMA EDIÇÃO DA UEFA CHAMPIONS LEAGUE!","Felicidade"),
+            ("Casemiro é sensacional no que faz. o melhor de sua função na história.","Felicidade"),
+            ("DEI BEIJINHO NO ROSTO DA LANA DEL REY, DEI ABRAÇO, TIREI FOTO, GANHEI AUTÓGRAFO, ELA DISSE QUE EU ERA UM DOCE, DISSE QUE ME AMAVA E AINDA ELOGIOU MEU CABELO! TB ESCREVEU \“YOU’RE SO ART DECO\” PRA EU TATUAR SERIOOO EU TÔ NO CÉU","Felicidade"),
+            ("Eu amo o fato de que podem dizer qualquer coisa da Lana, mas jamais vão poder falar que ela trata os fãs mal. Depois de um longo vôo, ela simplesmente foi com tudo pra junto das pessoas, conversando, batendo foto, dando autógrafos. Ela não é só uma boa artista, é uma boa pessoa","Felicidade"),
+            ("É MUITO irreal o que estamos vivendo! Lana Del Rey está há 4 anos longe dos palcos e de todos os países do mundo escolheu o BRASIL para seu retorno!","Felicidade"),
+            ("aaaaa simplesmente a maior artista do mundo no Rio de Janeiro Lana Del Rey você sempre será o meu amor, para todo o sempre & além","Felicidade"),
+            ("a Lana Del Rey literalmente autografou seis SEIS discos de vinil pra mim, tô bobo demais com o meu nome na capa do NFR - é o meu álbum favorito","Felicidade"),
+            ("ela toda felizinha encantada cantando video games rodeada dos fãs, lana é o ser humano mais doce e especial que existe","Felicidade"),
+            ("contando os segundos para chegar logo o dia que eu vou ADORAR a Lana Del Rey pessoalmente, vem aí a benção da pastora","Felicidade"),
+            ("eu nem acredito que vou ver a lana del rey ao vivo eu vou ser muito abençoado","Felicidade"),
+            ("A Lana chegando ao Brasil de forma totalmente acessível, atendendo e interagindo com todos os fãs, recebendo presentes e até cantando com eles, dá um exemplo para muitos artistas que passam rapidamente e não dedicam atenção nenhuma e ainda fazem pouco caso.","Felicidade"),
+            ("A melhor coisa da minha carreira foi poder debutar como membro do #BLACKPINK\". — #JENNIE para a Vogue Japan","Felicidade"),
+            ("Jennie kim esta simplesmente o auge da perfeição nessas fotos jennie for vogue japan","Felicidade"),
+            ("lelê, carimba seu passaporte lá pra casa do crl, volta pro volta redonda","Raiva"),
+            ("o que é a vida?? A VIDA É UMA MARAVILHA!!!!","Felicidade"),
+            ("PERFEITA! Dua Lipa lançou o videoclipe de Dance The Night, seu novo single para o filme da Barbie. Gostaram?","Felicidade"),
+            ("a barbie dando vida ao ken mds greta eu te amo","Felicidade"),
+            ("OH GENTE A CASA DA BARBIE IGUAL A CASA DE BRINQUEDO DE 3.000 REAIS QUE A GENTE NAO CONSEGUIA COMPRAR PQP A GRETA VAI EMOCIONAR MUITO","Felicidade"),
+            ("Dua Lipa você não tinha esse direito cara, como assim vc entregou a melhor música do ano até agora e ainda pra obra suprema Barbie, eu não tô aguentando, ARTISTA.","Felicidade"),
+            ("tinha sérios bloqueios com a juliette cantora. mas isso aqui ta muito bom cara! a música é, simplesmente, A CARA DELA!!","Felicidade"),
+            ("essa nova musica da juliette ta muito bom eu amei mds","Felicidade"),
+            ("lana del rey performando o hino born to die em solo brasileiro é um ato histórico e atemporal pra guardar na memória e em nossos corações","Felicidade"),
+            ("Eu te amo Lana 🥺❤️ Registro de ontem, durante Born to die. Ainda sem acreditar que trocamos olhares em diversos momentos e ganhei sorrisos que mais pareceram abraços dessa mulher incrível, esse anjo. Eu estou tão feliz e realizada. Valeu cada segundo","Felicidade"),
+            ("É hoje que vamos ouvir a Lana Del Rey cantar Born To Die mais uma vez em solo Brasileiro e emocionar uma nação!","Felicidade"),
+            ("que momento lindo,né? a Jade agradecendo a glória,falando da chiara e sendo aplaudida pela plateia.Ainda recebeu um PARABÉNS do Serginho💛","Felicidade"),
+            ("@jadepicon ainda nos assuntos do momento em décimo quinto lugar Foi lindo a participação dela,amei de mas espero ela em mas programas da @tvglobo 🫶🏼❤","Felicidade"),
+            ("O público cantando \“Young and Beautiful\” junto com Lana Del Rey é de ARREPIAR!","Felicidade"),
+            ("a público do mita aos berro com young and beautiful LANA DEL REY VOCÊ SEMPRE SERÁ FAMOSA E BEM QUISTA NO BRASIL","Felicidade"),
+            ("A FAVORITA PRA SEMPRE!!! onde tudo começou, eu te amo lana del rey","Felicidade"),
+            ("Lana Del rey o Brasil TE AMA! O PÚBLICO SIMPLESMENTE SURTANDO COM ELA","Felicidade"),
+            ("o que a lana del rey fez por nós mulheres tristes de caráter duvidoso nenhuma outra pessoa fez te amo","Felicidade"),
+            ("🚨ICÔNICA PARA OS TRISTES: \‘SUMMERTIME SADNESS\’ EM SOLO BRASILEIRO! LANA DEL REY EU TE AMO ","Felicidade"),
+            ("A plateia INCRÍVEL na performance de \“Born to Die\”, da Lana Del Rey O MELHOR PÚBLICO DO MUNDO!","Felicidade"),
+            ("ontem sem dúvida foi um dos melhores dias da minha vida!!! minha ficha demorou muito pra cair mas eu vi a lana del rey, coisa que eu nunca achei que fosse acontecer; achei que fosse um sonho impossível de se realizar… mas eu realizei ♥️ te amo lanita 💌","Felicidade"),
+            ("de arrepiar DEMAIS ouvir a voz da nossa querida lana del rey acompanhada pelo coral fervoroso da plateia, o público brasileiro sempre deixando o resto no chinelo, admirem:","Felicidade"),
+            ("Que momento! Os fãs acenderam as luzes de seus celulares enquanto Lana Del Rey cantava a música \“Ocean Blvd\” no MITA.","Felicidade"),
+            ("isso aqui é lindo cara a energia do brasil é completamente diferente E O BRASIL TE AMA LANA DEL REY 😭😭","Felicidade"),
+            ("minha vida foi dividida em duas partes, antes e depois desse show. Você sempre será a maior Lana Del Rey 🤍","Felicidade"),
+            ("como pode a lana del rey ser a maior cantora do mundo","Felicidade"),
+            ("Hoje fui um dos viados mais felizes do mundo, vi Lana Del Rey DE PERTINHO","Felicidade"),
+            ("LANA DEL REY MAIS UMA VEZ FAZENDO HISTÓRIA","Felicidade"),
+            ("obrigado por tudo lana del rey vc é a maior artista viva te amo","Felicidade"),
+            ("Ainda refletindo sobre lana del rey ter voltado aos palcos no Brasil e o show de ontem, que mulherão da p%rra meu queridos","Felicidade"),
+            ("PRA QUE BACKING VOCAL QUANDO SE TEM O PÚBLICO BRASILEIRO? SURREAL DE LINDO. LANA DEL REY EU TE AMOOOOO","Felicidade"),
+            ("Simplesmente a Lana Del Rey loiríssima em terras brasileiras 🗣🗣 ","Felicidade"),
+            ("como pode lana del rey ser a maior cantora e compositora do mundo, tô assim","Felicidade"),
+            ("sério gente amo tanto a lana del rey juro por deus como pode um ser humano me causar tantos sentimentos inimagináveis, ver essa mulher voltar aos palcos dps de 4 anos tá sendo tudo","Felicidade"),
+            ("Somos abençoados por vivermos no mesmo planeta que Lana Del Rey. ","Felicidade"),
+            ("terminei The glory e estou em completo CHOQUE. que dorama bem estruturado e BOM, VICIANTE 🤯🤯🤯🤯🤯🤯🤯","Felicidade"),
+            ("the glory é tao bom","Felicidade"),
+            ("MEU DEUS É A MESMA ROTEIRISTA? faz muito sentido pq todos esses dramas são perfeitos, terminei agora the glory e simplesmente A MAIOR","Felicidade"),
+            ("depois de fodendo sei la quantos anos ja perdi a noção de tao biruta que fiquei de ansiedade por esse filme HOJE IREI ASSISTIR O LIVE ACTION DE A PEQUENA SEREIA COM HALLE BAILEY QUE SABOR MEUS AMIGOS QUE SABOOOORRRRR","Felicidade"),
+            ("Relatos de ontem fui ver a pequena sereia. Que por sinal está impecável, não pecaram em absolutamente nada, literalmente eu revivi a minha infância e estou muito feliz com isso🥹","Felicidade"),
+            ("e quando a Halle Bailey cantou essa em a pequena sereia? Foi muito emocionante","Felicidade"),
+            ("a pequena sereia é facilmente top melhores live action da disney, apenas. a halle bailey é incrível e me emocionou horrores pqp nasceu pra ser princesa mesmo.","Felicidade"),
+            ("adorei a pequena sereia eh mt bom n ser cinefilo vc so se encanta por cores musicas e se eles ficam juntos no final","Felicidade"),
+            ("O que foi a Úrsula gigante mds, os tentáculos na água, o rosto e a pele envelhecidos... EU SIMPLESMENTE AMEI 💜","Felicidade"),
+            ("É HOJE!!!! Acontece hoje o primeiro show de Sabrina Carpenter no Brasil 🇧🇷🇧🇷🇧🇷 Preparados? 💌","Felicidade"),
+            ("HOJE TEM SABRINA CARPENTER NO MITA FESTIVAL!","Felicidade"),
+            ("CONSEGUI GRADE CARALHOOOOOOOO, EU VOU VER A SABRINA DE PERTINHOOOOOOOOK","Felicidade"),
+            ("sabrina carpenter você sempre será famosa!","Felicidade"),
+            ("14h o brasil se apaixonará por sabrina carpenter","Felicidade"),
+            ("a sabrina ta no brasil: 😍😍😍😍😍😍","Felicidade"),
+            ("eu quero tatuar o sorriso da sabrina na minha alma","Felicidade"),
+            ("Tô aqui revivendo o show do Coldplay no rock in rio do ano passado. A gente que tá lá na cidade do rock, não tem a dimensão do tanto que é lindo visto por cima. Sem sombra de dúvidas, um dos shows mais lindos que fui.","Felicidade"),
+            ("bts e coldplay, melhor feat de todos os tempos","Felicidade"),
+            ("Gente, mas isso aqui ficou incrível!! Juliette popstar alto nível.","Felicidade"),
+            ("caras a nova da juliette e o clipe ficaram mt bons passado","Felicidade"),
+            ("muito bom ver a evolução e o amadurecimento da juliette na música ela serviu aqui","Felicidade"),
+            ("ESSA SEMANA VOU VER A JULIETTE NO CHÁAAAAA, EU ATE SONHEI COM ISSO HJ KKKKK sonhei que não conseguia fazer a mala e esquecia tudo em casa","Felicidade"),
+            ("Vendo o clipe pela 11 vezes,amou @juliette ? ❤️","Felicidade"),
+            ("hoje sabrina carpenter vai carrega esse festival flopado nas costas aff amo minha loirinha","Felicidade"),
+            ("apenas tom holland sendo um grande gostoso no gp de Mônaco 💚","Felicidade"),
+            ("fui dormir e acordei com a foto do tom holland e o Neymar juntos !!!","Felicidade"),
+            ("Tô acompanhando as entrevistas e aparições da Halle pra promover A Pequena Sereia e a mulher É exatamente como imagino que seria uma princesa Disney na vida real. A voz maravilhosa, o sorriso, a criatividade, a gentileza e disponibilidade com os jornalistas. Como não amar? ❤️","Felicidade"),
+            ("Gente então eu ainda to em choque com o que eu vi mais muito agradecido pela espera, sempre sonhei com isso a 7 anos. O filme está simplesmente PERFEITO Halle brilhou como Ariel deu um show de atuação, uma voz…","Felicidade"),
+            ("juro quem viveu isso aqui vendo onde elas estão agora hj première de \“a pequena sereia\” com halle de protagonista; chloe brilhando mto solo minhas meninas venceram demais 🤧","Felicidade"),
+            ("halle bailey você...você é perfeita cara...esse papel era seu e de mais ninguém! adorei a pequena sereia cara 😭😭","Felicidade"),
+            ("Hoje fui na premier do filme \“A Pequena Sereia\” e foi mais que emocionante. Foi encantador! 🤎🧜🏿‍♀️","Felicidade"),
+            ("desde que colocaram a soundtrack oficial de a pequena sereia no spotify eu to andando pela casa assim","Felicidade"),
+            ("fiquei boba que a jessica alexander ta divando em a pequena sereia eu era apaixonada por essa querida ela fez uma serie que so 3 pessoas viam chamada get even","Felicidade"),
+            ("encontrei o link do drive de a pequena sereia e viva a pirataria","Felicidade"),
+            ("AVISA QUE É A SEREIONA! 🧜🏾‍♀️ \‘A Pequena Sereia\’ somou 38 milhões de dólares no dia de estreia nos Estados Unidos. Resultado acima dos 31 milhões de \‘Aladdin\’, no mesmo período em 2019.","Felicidade"),
+            ("FINALMENTE A PEQUENA SEREIA DUBLADO 😭","Felicidade"),
+            ("Dia perfeito pra ir assistir a pequena sereia","Felicidade"),
+            ("[INFO] O MAIOR QUE TEMOS! 🧜🏽‍♀️🩵 \‘A Pequena Sereia\’ é o filme mais assistido do mundo! Lembrando que o filme já está em cartaz então não percam de vivenciar esse momento emocionante.","Felicidade"),
+            ("vou ver a pequena sereia hj e ja me encontro assim","Felicidade"),
+            ("Acabei de assistir a pequena sereia e o filme tá maravilhoso e quem não gostou que se exploda","Felicidade"),
+            ("só tem gente falando bem de A pequena sereia, o filme tá tão lindo!!! Ansioso pra segunda feira q vou ver de novo só q agr dublado com minha mãe","Felicidade"),
+            ("Eu esperando o dinheiro cair na conta pra assistir a pequena sereia","Felicidade"),
+            ("bom dia feliz dia de estreia de a pequena sereia #APequenaSereia","Felicidade"),
+            ("\“A Pequena Sereia\” estreia nesta semana nos cinemas e a representatividade e importância de Halle Bailey nesse papel é GIGANTE! ","Felicidade"),
+            ("VIVA A PIRATARIA ACHEI UM DRIVE DE A PEQUENA SEREIA DUBLADO","Felicidade"),
+            ("O melhor live action da Disney até hoje!!! A pequena sereia 💙✨","Felicidade"),
+            ("Acabei de assistir A Pequena Sereia! QUE FILME! Halle Bailey é a Ariel perfeita! O filme é uma grande homenagem ao clássico da Disney, com cenas e tramas novas positivas. O filme é esteticamente muito bonito! O Sebastião e Úrsula são os maiorais! #APequenaSereia #TheLittleMermaid","Felicidade"),
+            ("Isso é  Disney,caiu um cisco no meu olho.A expressão da atriz é  idêntica ao desenho,me arrepiei muitas vezes pq assisti  quando tinha 9 anos a história, é  uma das minhas preferidas!!!! Simplesmente  lindo A live action ❤ Halle bailey vc é literalmente  a pequena sereia❤❤","Felicidade"),
+            ("\“A Pequena Sereia\” é de longe o melhor live action das princesas da Disney e não poderiam ter escolhido alguém melhor do que a Halle pra protagonizar…ela É a Ariel!","Felicidade"),
+            ("bom dia mas só pra quem vai ver a pequena sereia hoje, nunca fui triste 😭😭😭😭💗💗","Felicidade"),
+            ("fiquei literalmente assim vendo a halle no cinema sério eu amo tanto ela não tem nada que eu não faria por ela a pequena sereia ta a coisa mais linda do mundo","Felicidade"),
+            ("meu deus a pequena sereia lança hoje","Felicidade"),
+            ("a pequena sereia tá impecável, quem não gostou desse live action só pode ter merda na cabeça","Felicidade"),
+            ("a pequena sereia é tão bom, lindo demais","Felicidade"),
+            ("achei o drive de a pequena sereia eng mto obg aos envolvidos por ajudar um assalariado a poupar dinheiro","Felicidade"),
+            ("Finalmente terminei esse desenho da Ariel e já passo para dizer novamente: ASSISTAM A PEQUENA SEREIA","Felicidade"),
+            ("Acabei de assistir A pequena sereia e afirmo com tranquilidade que é o melhor live action.","Felicidade"),
+            ("JÁ TÔ NO CINEMA PRA VER A PEQUENA SEREIA","Felicidade"),
+            ("Qualquer oportunidade que eu tiver de exaltar a pequena sereia como o melhor Live Action da Disney eu exaltarei","Felicidade"),
+            ("todo mundo aplaudindo a pequena sereia no final 🥹","Felicidade"),
+            ("hj tem estreia de a pequena sereia mds","Felicidade"),
+            ("essa semana nada poderá me abalar pois sexta-feira estarei indo ver a pequena sereia para continuar sendo cadela das princesas da disney","Felicidade"),
+            ("a pequena sereia como você se sente carregando o peso de ser o melhor live action já produzido pela disney?","Felicidade"),
+            ("ARIEL VOCÊ SABE QUE VENCEU 🧜🏾‍♀️🥇🎉","Felicidade"),
+            ("na sessão de a pequena sereia eu achei a coisa mais linda do mundo as crianças cantando todas as músicas, gritando, torcendo pela ariel, aplaudindo ela (sim, elas começaram a aplaudir)… no final uma mini querida ainda solta que ela era a ary 💔","Felicidade"),
+            ("assisti a pequena sereia 🖤 chorei durante quase o filme todo kkkkkk halle perfeita, tudo perfeito 😭","Felicidade"),
+            ("finalmente o drive de a pequena sereia dublado em português","Felicidade"),
+            ("Amei a pequena sereia amei de vdd ameiiii","Felicidade"),
+            ("a nota de a pequena sereia só subindo no rotten ai que delicia","Felicidade"),
+            ("Acabei de assistir o live-action de A Pequena Sereia e digo com toda certeza: MELHOR LIVE-ACTION DA DISNEY E FILME DO ANO! Tudo nele é perfeito. Desde a Halle que tem um vozeirão, muito carisma e uma interpretação ótima que não é caricata como muitos falavam que ia ser","Felicidade"),
+            ("MEU DEUS A PEQUENA SEREIA É O MELHOR FILME DE TODOS OAKAOQMZOAMZOAN","Felicidade"),
+            ("assisti a pequena sereia e to maravilhado juro amei muito halle bailey vc nasceu pra esse papel","Felicidade"),
+            ("assisti a pequena sereia e posso dizer: halle bailey atriz da geração , FILME PERFEITOOOOO","Felicidade"),
+            ("a pequena sereia live action será sempre memorável e incrivelmente significativo 💗","Felicidade"),
+            ("o filme é lindo demais, fotografia impecável e halle bailey é um espetáculo","Felicidade"),
+            ("A PEQUENA SEREIA FILME DO ANO PORRAAAAAAAA ELA É A MAIOR DO MUNDO","Felicidade"),
+            ("Voltei pra casa com os ingressos pra estreia de a pequena sereia nada irá estragar minha semana mais","Felicidade"),
+            ("estão todas as fanbases do jimin nisso 🗣️🗣️🗣️🗣️ ELAS SÃO GIGANTES ","Felicidade"),
+            ("Richarlison foi convocado para a seleção brasileira! Parabéns Pombo 🕊️","Felicidade"),
+            ("Palavras jamais serão o suficiente pra expressar todo o meu amor, gratidão e orgulho por você, mas mesmo assim, nunca irei deixar de dizer todas elas. Que a jornada ao seu lado, Taehyung seja infinita 💜 ","Felicidade"),
+            ("O short jeans, ela dando dicas que vem pro Brasil😭","Felicidade"),
+            ("🎥 Demanda? Temos, Estádio lotado? Temos! #BORNPINKENCOREinBANGKOK #BORNPINKinBangkok","Felicidade"),
+            ("Mamãe Manoban sendo super fofa cumprimentando os BLINKs antes do show começar mais cedo 🥹🫶🏼","Felicidade"),
+            ("não ironicamente quando o blackpink anunciar show aqui no brasil eu vou ser mais feliz dq fui no dia do lançamento de lovesick girls","Felicidade"),
+            ("ELA ASSISTINDO A RETROSPECTIVA DA CARREIRA NO MONÓLOGO DE RIDE, EU TÔ CHORANDO QUE NÃO ME AGUENTO MAIS LANA EU TE AMO MAIS QUE TUDO NESSE MUNDO","Felicidade"),
+            ("eu amanhã tranquila pq não vou fazer obmep","Felicidade"),
+            ("qm vazou o gabarito da obmep saiba q eu te amo MUITO","Felicidade"),
+            ("Eu vivi pra ver Vai na Fé referenciando The White Lotus. A Wilma soltou um \"Esses gays tão querendo me matar\"... ganhei uma semana de serotonina com essa","Felicidade"),
+            ("Impressionante como The White Lotus era exatamente oq eu tava procurando!","Felicidade"),
+            ("Segunda temporada de The White Lotus, não sei como, é melhor que a primeira. Muito excelente.","Felicidade"),
+            ("sse filme que ta passando na sessão da tarde \" a proposta\" eu amooo demais um dos melhores da sandra bullock","Felicidade"),
+            ("colocaram Sandra Bullock e Ryan Reynolds em um filme juntos e fizeram uma das comédias românticas mais divertidas possível","Felicidade"),
+            ("O filme mais perfeito da Sandra Bullock é \"Enquanto você dormia\". Amo.","Felicidade"),
+            ("A proposta é incrível, Sandra Bullock é incrível,Ryan Reynolds é incrível, comédias românticas são incríveis.Aí como eu amo esse filme","Felicidade"),
+            ("a proposta na sessão da tarde com a sandra bullock e o ryan reynolds melhor escolha possível 💜","Felicidade"),
+            ("Sem comparação para as vozes que dublam atores como Jason Staham, Joaquim Phoenix, Terry Crews, Sandra Bullock, Gal Gadot, Adam Sandler, Brendan Fraser e vários outros que merecem ser citados neste comment. Essas vozes são incríveis, na moral!","Felicidade"),
+            ("Amo os filmes da Sandra Bullock, o tempero sem igual que ela dá nas histórias é de poucos.","Felicidade"),
+            ("Não sei o que é, mas eu aaaamo ver filmes que tem a Sandra Bullock.","Felicidade"),
+            ("nada supera a rihanna quebrando o hiatus musical já anunciando o segundo bebê enquanto cantava numa plataforma flutuante","Felicidade"),
+            ("Todo dia um Swift sem noção sendo massacrado nesse site por atacar Rihanna, como eu amo.","Felicidade"),
+            ("anos se passaram e nada mudou rihanna você sempre será famosa","Felicidade"),
+            ("Eu saindo da aula de história depois de dizer que o maior ato histórico do mundo foi o debute do BLACKPINK","Felicidade"),
+            ("me choca em vários tipos diferentes a forma e presença que o blackpink teve no seu debut stage... sendo que elas nem imaginava o que vinha por vim","Felicidade"),
+            ("a Tailândia deitando pro BLACKPINK","Felicidade"),
+            ("É tão delicioso saber que o BLACKPINK tem demanda pra estádio em qualquer lugar da Ásia","Felicidade"),
+            ("#ROSÉ entregando lindos vocais na performance de \'GONE\' no segundo dia de encore na Tailândia.  ","Felicidade"),
+            ("e quando a born pink tour for encerrada e o blackpink fazer um hiatus de 2anos e a yg logo em seguida reportar que elas já estão se preparando para o comeback com um álbum full english","Felicidade"),
+            ("A Clara falando que a Helena faz ela feliz. ❤️ #VaiNaFe","Felicidade"),
+            ("O jeito que a Clara tem de olhar a Helena... Os olhos caindo pros lábios dela. Ah, Deus! Sério, se me olha assim eu caso logo. Mané esperar. Compra uma casa, adota um gato. Pronto!","Felicidade"),
+            ("coisa mais linda que já vi em toda minha vida é que a helena se tornou o porto seguro da clara e isso me deixa feliz demais, amo minhas mães ❤ ","Felicidade"),
+            ("o rafa apoiando o namoro da clara e da helena mds tô emocionada","Felicidade"),
+            ("helena sendo a lésbica mais feliz do mundo com a casada dela falando esse tipo de coisa pra ela AI COMO AMO MEU CLARENA","Felicidade"),
+            ("simmmm, Christiane Torloni muito maravilhosa como Helena! 💙💙💙","Felicidade"),
+            ("O jeitinho que a Helena segura o rostinho da Clara meu Deus. A forma de amor dela é o toque e palavras de afirmação. 😭😭","Felicidade"),
+            ("eu sempre fico feliz ao perceber que blackpink é um dos únicos grupos que as membros tem lados diferentes mas que se completa juntos","Felicidade")
+        ]
+        X, y = zip(*reviews)
 
-        driver = webdriver.Chrome(options=options)
+        vectorizer = CountVectorizer()
+        X_vec = vectorizer.fit_transform(X)
 
-        try:
-            driver.get('https://twitter.com/i/trends')
+        classifier = MultinomialNB()
+        classifier.fit(X_vec, y)
 
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.XPATH, '//section[contains(@role, "region")]'))
-            )
+        def analyze_sentiment(text):
+            text_vec = vectorizer.transform([text])
+            prediction = classifier.predict(text_vec)[0]
+            probabilities = classifier.predict_proba(text_vec)[0]
+            happiness_prob = probabilities[0]
+            sadness_prob = probabilities[2]
+            anger_prob = probabilities[1] 
+            
+            return prediction, happiness_prob, sadness_prob, anger_prob
 
-            trending_topics = driver.find_elements(By.XPATH, '//div[@data-testid="trend"]//span')
-
-            topics = []
-            for topic in trending_topics:
-                topic_text = topic.text
-                if 'Assunto' not in topic_text and 'Tweets' not in topic_text and 'Trending' not in topic_text:
-                    topics.append(topic_text)
-
-            return jsonify({'topics': topics})
-
-        finally:
-            driver.quit()
-
-    except Exception as error:
-        print('An error occurred:', error)
-        return jsonify({'error': 'An error occurred'}), 500
-
-@app.route('/trending/<topic>', methods=['GET'])
-def get_topic_tweets(topic):
-    try:
-        options = Options()
-        options.add_argument('--window-size=1920,1080')
-        # options.add_argument('--headless') # Run Chrome in headless mode (no GUI)
-
-        driver = webdriver.Chrome(options=options)
-
-        try:
-            driver.get('https://twitter.com/i/flow/login')
-
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, 'input[type=text]'))
-            )
-            user = driver.find_element(By.CSS_SELECTOR, 'input[type=text]')
-            user.send_keys('bottrendingco')
-            driver.execute_async_script('Array.of(...document.querySelectorAll("span")).find(el => el.innerText === "Avançar").click()')
-
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, 'input[name=password]'))
-            )
-            password = driver.find_element(By.CSS_SELECTOR, 'input[name=password]')
-            password.send_keys('5398Trending@')
-            driver.execute_async_script('Array.of(...document.querySelectorAll("span")).find(el => el.innerText === "Entrar")?.click()')
-
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, 'article'))
-            )
-
-            driver.get(f'https://twitter.com/search?q={topic}&src=typed_query')
-
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, 'article'))
-            )
-
-            articles = driver.find_elements(By.CSS_SELECTOR, 'article')
-
-            tweets = []
-            for article in articles:
-                tweet = article.text
-                tweets.append(tweet)
-
-            return jsonify({'tweets': tweets})
-
-        finally:
-            driver.quit()
+        sentiment, happiness_prob, sadness_prob, anger_prob = analyze_sentiment(user_input)
+        return jsonify(
+            {
+                'result': sentiment,
+                'Felicidade': "{:.2f}".format(happiness_prob * 100) + "%",
+                'Tristeza': "{:.2f}".format(sadness_prob * 100) + "%",
+                'Raiva': "{:.2f}".format(anger_prob * 100) + "%",
+            }
+            ), 200
 
     except Exception as error:
         print('An error occurred:', error)
         return jsonify({'error': 'An error occurred'}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=3000)
+    app.run(host='0.0.0.0', port=3001)
     print('Server is running on http://localhost:3000')
